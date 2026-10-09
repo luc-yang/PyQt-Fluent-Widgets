@@ -1,8 +1,8 @@
 # coding:utf-8
-from PyQt5.QtCore import QEasingCurve, QPropertyAnimation, Qt, QEvent, QPoint
+from PyQt5.QtCore import Qt, QEvent, QPoint
 from PyQt5.QtGui import QColor, QResizeEvent
 from PyQt5.QtWidgets import (QApplication, QDialog, QGraphicsDropShadowEffect,
-                             QGraphicsOpacityEffect, QHBoxLayout, QWidget, QFrame)
+                             QHBoxLayout, QWidget, QFrame)
 
 from ...common.config import isDarkTheme
 
@@ -55,35 +55,6 @@ class MaskDialogBase(QDialog):
         self.windowMask.setStyleSheet(f"""
             background: rgba({color.red()}, {color.green()}, {color.blue()}, {color.alpha()})
         """)
-
-    def showEvent(self, e):
-        """ fade in """
-        opacityEffect = QGraphicsOpacityEffect(self)
-        self.setGraphicsEffect(opacityEffect)
-        opacityAni = QPropertyAnimation(opacityEffect, b'opacity', self)
-        opacityAni.setStartValue(0)
-        opacityAni.setEndValue(1)
-        opacityAni.setDuration(200)
-        opacityAni.setEasingCurve(QEasingCurve.InSine)
-        opacityAni.finished.connect(lambda: self.setGraphicsEffect(None))
-        opacityAni.start()
-        super().showEvent(e)
-
-    def done(self, code):
-        """ fade out """
-        self.widget.setGraphicsEffect(None)
-        opacityEffect = QGraphicsOpacityEffect(self)
-        self.setGraphicsEffect(opacityEffect)
-        opacityAni = QPropertyAnimation(opacityEffect, b'opacity', self)
-        opacityAni.setStartValue(1)
-        opacityAni.setEndValue(0)
-        opacityAni.setDuration(100)
-        opacityAni.finished.connect(lambda: self._onDone(code))
-        opacityAni.start()
-
-    def _onDone(self, code):
-        self.setGraphicsEffect(None)
-        QDialog.done(self, code)
 
     def isClosableOnMaskClicked(self):
         return self._isClosableOnMaskClicked
