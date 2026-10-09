@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (QLabel, QWidget, QPushButton, QFrame, QVBoxLayout,
                              QHBoxLayout, QSizePolicy)
 
 from ...common.style_sheet import FluentStyleSheet, isDarkTheme
-from ..widgets import PrimaryPushButton, SpinBox
+from ..widgets import PrimaryPushButton, SpinBox, CompactSpinBox
 from ..widgets.line_edit import LineEdit
 from .mask_dialog_base import MaskDialogBase
 
@@ -95,12 +95,41 @@ class BrightnessSlider(QWidget):
         self.color = QColor(color)
         self.setFixedHeight(28)
         self.setCursor(Qt.SizeHorCursor)
+        self.setFocusPolicy(Qt.StrongFocus)
+        self._wheelDelta = 0
 
     def mousePressEvent(self, e):
         self.__setValue(e.pos().x())
 
     def mouseMoveEvent(self, e):
         self.__setValue(e.pos().x())
+
+    def keyPressEvent(self, e):
+        value = self.color.value()
+        if e.key() in (Qt.Key_Left, Qt.Key_Down):
+            value -= 1
+        elif e.key() in (Qt.Key_Right, Qt.Key_Up):
+            value += 1
+        elif e.key() == Qt.Key_PageDown:
+            value -= 10
+        elif e.key() == Qt.Key_PageUp:
+            value += 10
+        elif e.key() == Qt.Key_Home:
+            value = 0
+        elif e.key() == Qt.Key_End:
+            value = 255
+        else:
+            super().keyPressEvent(e)
+            return
+        self._setValue(value)
+
+    def wheelEvent(self, e):
+        e.accept()
+        self._wheelDelta += e.angleDelta().y()
+        steps = int(self._wheelDelta / 120)
+        self._wheelDelta -= steps * 120
+        if steps:
+            self._setValue(self.color.value() + steps)
 
     def setColor(self, color):
         """ set color """
@@ -110,6 +139,10 @@ class BrightnessSlider(QWidget):
     def __setValue(self, x):
         rect = self.rect().adjusted(7, 8, -7, -8)
         value = max(0, min(255, round((x - rect.left()) / max(1, rect.width()) * 255)))
+        self._setValue(value)
+
+    def _setValue(self, value):
+        value = max(0, min(255, value))
         if value == self.color.value():
             return
 
@@ -276,6 +309,17 @@ class ColorDialog(MaskDialogBase):
         self.hexLabel = QLabel(self.tr('Hex'), self.widget)
         self.opacityLabel = QLabel(self.tr('Opacity'), self.widget)
         self.hexLineEdit = HexColorLineEdit(color, self.widget, enableAlpha)
+        self.redLabel = QLabel(self.tr('Red'), self.widget)
+        self.greenLabel = QLabel(self.tr('Green'), self.widget)
+        self.blueLabel = QLabel(self.tr('Blue'), self.widget)
+        self.redSpinBox = CompactSpinBox(self.widget)
+        self.greenSpinBox = CompactSpinBox(self.widget)
+        self.blueSpinBox = CompactSpinBox(self.widget)
+        for spin in (self.redSpinBox, self.greenSpinBox, self.blueSpinBox):
+            spin.setRange(0, 255)
+        self.redSpinBox.setValue(self.color.red())
+        self.greenSpinBox.setValue(self.color.green())
+        self.blueSpinBox.setValue(self.color.blue())
         self.opacitySpinBox = SpinBox(self.widget)
         self.opacitySpinBox.setRange(0, 100)
         self.opacitySpinBox.setSuffix('%')
@@ -334,6 +378,15 @@ class ColorDialog(MaskDialogBase):
             self.opacityLabel.hide()
             self.opacitySpinBox.hide()
 
+        rgbLayout = QHBoxLayout()
+        rgbLayout.setSpacing(12)
+        rgbLayout.addWidget(self.redLabel, 0, Qt.AlignVCenter)
+        rgbLayout.addWidget(self.redSpinBox, 1)
+        rgbLayout.addWidget(self.greenLabel, 0, Qt.AlignVCenter)
+        rgbLayout.addWidget(self.greenSpinBox, 1)
+        rgbLayout.addWidget(self.blueLabel, 0, Qt.AlignVCenter)
+        rgbLayout.addWidget(self.blueSpinBox, 1)
+
         self.viewLayout = QVBoxLayout()
         self.viewLayout.setSpacing(12)
         self.viewLayout.setContentsMargins(24, 24, 24, 24)
@@ -342,6 +395,7 @@ class ColorDialog(MaskDialogBase):
         self.viewLayout.addWidget(self.brightLabel)
         self.viewLayout.addWidget(self.brightSlider)
         self.viewLayout.addLayout(editLayout)
+        self.viewLayout.addLayout(rgbLayout)
 
         buttonLayout = QHBoxLayout(self.buttonGroup)
         buttonLayout.setSpacing(12)
@@ -373,6 +427,13 @@ class ColorDialog(MaskDialogBase):
         self.newColorCard.setColor(self.color)
         self.hexLineEdit.setColor(self.color)
 
+        channels = zip((self.redSpinBox, self.greenSpinBox, self.blueSpinBox),
+                       (self.color.red(), self.color.green(), self.color.blue()))
+        for spin, value in channels:
+            spin.blockSignals(True)
+            spin.setValue(value)
+            spin.blockSignals(False)
+
         if updateOpacity:
             self.opacitySpinBox.blockSignals(True)
             self.opacitySpinBox.setValue(int(self.color.alpha() / 255 * 100))
@@ -396,6 +457,21 @@ class ColorDialog(MaskDialogBase):
         """ opacity changed slot """
         self.color.setAlpha(int(opacity / 100 * 255))
         self.__syncWidgets(updateOpacity=False)
+
+    def __onRedChanged(self, red):
+        """ red channel changed slot """
+        self.color.setRed(red)
+        self.__syncWidgets()
+
+    def __onGreenChanged(self, green):
+        """ green channel changed slot """
+        self.color.setGreen(green)
+        self.__syncWidgets()
+
+    def __onBlueChanged(self, blue):
+        """ blue channel changed slot """
+        self.color.setBlue(blue)
+        self.__syncWidgets()
 
     def __onHexColorChanged(self, color):
         """ hex color changed slot """
@@ -425,3 +501,6 @@ class ColorDialog(MaskDialogBase):
         self.brightSlider.colorChanged.connect(self.__onBrightnessChanged)
         self.hexLineEdit.valueChanged.connect(self.__onHexColorChanged)
         self.opacitySpinBox.valueChanged.connect(self.__onOpacityChanged)
+        self.redSpinBox.valueChanged.connect(self.__onRedChanged)
+        self.greenSpinBox.valueChanged.connect(self.__onGreenChanged)
+        self.blueSpinBox.valueChanged.connect(self.__onBlueChanged)
