@@ -355,6 +355,12 @@ class RoundMenu(QMenu):
         h = self.view.height() + m.top() + m.bottom()
         self.setFixedSize(w, h)
 
+    def sizeHint(self) -> QSize:
+        """ get the size of menu """
+        self.view.adjustSize()
+        self.adjustSize()
+        return self.size()
+
     def icon(self):
         return self._icon
 
