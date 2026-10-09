@@ -1,7 +1,7 @@
 # coding:utf-8
 from PyQt5.QtCore import QEasingCurve, QPropertyAnimation, Qt, QEvent, QPoint
 from PyQt5.QtGui import QColor, QResizeEvent
-from PyQt5.QtWidgets import (QDialog, QGraphicsDropShadowEffect,
+from PyQt5.QtWidgets import (QApplication, QDialog, QGraphicsDropShadowEffect,
                              QGraphicsOpacityEffect, QHBoxLayout, QWidget, QFrame)
 
 from ...common.config import isDarkTheme
@@ -11,6 +11,13 @@ class MaskDialogBase(QDialog):
     """ Dialog box base class with a mask """
 
     def __init__(self, parent=None):
+        if parent is not None:
+            parent = parent.window()
+        else:
+            parent = QApplication.activeWindow()
+            if parent is None:
+                raise ValueError("The mask dialog should have a parent window")
+
         super().__init__(parent=parent)
         self._isClosableOnMaskClicked = False
         self._isDraggable = False
